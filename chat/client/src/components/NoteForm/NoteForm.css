@@ -1,0 +1,27 @@
+.note-form {
+  display: flex;
+  flex-direction: column;
+
+  gap: 16px;
+
+  padding: 16px;
+  box-sizing: border-box;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+.flex{
+  display: flex;
+  flex-direction: column;
+}
+
+.flex__item{
+    position: fixed;
+  bottom: 0px;
+   width: 100%;
+
+}
+
+
+
+

@@ -1,0 +1,560 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { 
+  Bot, 
+  User, 
+  ArrowLeftRight, 
+  FileText, 
+  Image, 
+  Search, 
+  Settings, 
+  LogOut,
+  Loader2,
+  RefreshCw,
+  Database,
+  MessageSquare,
+  Send,
+  Download
+} from 'lucide-react';
+
+interface BotMessage {
+  id: number;
+  user_id: number;
+  message_id: number;
+  sender_id: number;
+  message_text?: string;
+  message_type: string;
+  media_file_id?: string;
+  is_media: boolean;
+  is_bot: boolean;
+  direction: 'incoming' | 'outgoing';
+  created_at: string;
+}
+
+interface ChatGroup {
+  senderId: number;
+  messages: BotMessage[];
+  lastMessage: BotMessage;
+  messageCount: number;
+}
+
+interface MessageStats {
+  total: number;
+  incoming: number;
+  outgoing: number;
+  textMessages: number;
+  mediaMessages: number;
+}
+
+export function Dashboard() {
+  const { user, logout, refreshUser } = useAuth();
+  const [messages, setMessages] = useState<BotMessage[]>([]);
+  const [stats, setStats] = useState<MessageStats | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [botDatabaseId, setBotDatabaseId] = useState(user?.botDatabaseId || '');
+  const [filters, setFilters] = useState({
+    messageType: 'all',
+    direction: 'all',
+    search: '',
+  });
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [pagination, setPagination] = useState<any>(null);
+
+  // Group messages by chat (sender_id)
+  const groupMessagesByChat = (messages: BotMessage[]): ChatGroup[] => {
+    const chatMap = new Map<number, BotMessage[]>();
+    
+    // Group messages by sender_id
+    messages.forEach(message => {
+      if (!chatMap.has(message.sender_id)) {
+        chatMap.set(message.sender_id, []);
+      }
+      chatMap.get(message.sender_id)!.push(message);
+    });
+    
+    // Convert to ChatGroup array and sort by last message time
+    const chatGroups: ChatGroup[] = Array.from(chatMap.entries()).map(([senderId, messages]) => ({
+      senderId,
+      messages: messages.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+      lastMessage: messages.reduce((latest, msg) => 
+        new Date(msg.created_at).getTime() > new Date(latest.created_at).getTime() ? msg : latest
+      ),
+      messageCount: messages.length
+    }));
+    
+    // Sort chats by last message time (most recent first)
+    return chatGroups.sort((a, b) => 
+      new Date(b.lastMessage.created_at).getTime() - new Date(a.lastMessage.created_at).getTime()
+    );
+  };
+
+  const chatGroups = groupMessagesByChat(messages);
+
+  const fetchMessages = async (pageNum = page) => {
+    if (!user?.botDatabaseId) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const params = new URLSearchParams({
+        page: pageNum.toString(),
+        limit: '50',
+        ...(filters.messageType && filters.messageType !== 'all' && { messageType: filters.messageType }),
+        ...(filters.direction && filters.direction !== 'all' && { direction: filters.direction }),
+        ...(filters.search && { search: filters.search }),
+      });
+
+      const response = await fetch(`/api/messages?${params}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessages(data.data.messages);
+        setTotal(data.data.total);
+        setStats(data.data.stats);
+        setPagination(data.data.pagination);
+        setPage(pageNum);
+      } else {
+        setError(data.error || 'Ошибка при загрузке сообщений');
+      }
+    } catch (error) {
+      setError('Ошибка сети');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const reloadHistory = async () => {
+    if (!user?.botDatabaseId) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/api/messages/reload', { method: 'POST' });
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessages(data.data.messages);
+        setTotal(data.data.total);
+        setStats(data.data.stats);
+        setPage(1);
+        setFilters({ messageType: 'all', direction: 'all', search: '' });
+      } else {
+        setError(data.error || 'Ошибка при перезагрузке истории');
+      }
+    } catch (error) {
+      setError('Ошибка сети');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.botDatabaseId) {
+      fetchMessages();
+    }
+  }, [user?.botDatabaseId]);
+
+  useEffect(() => {
+    if (user?.botDatabaseId) {
+      setPage(1);
+      fetchMessages(1);
+    }
+  }, [filters]);
+
+  const handleConnectBot = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/api/settings/bot-id', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ botDatabaseId: botDatabaseId || null }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        await refreshUser();
+        setShowSettings(false);
+        if (botDatabaseId) {
+          setMessages([]);
+          setPage(1);
+          setFilters({ messageType: 'all', direction: 'all', search: '' });
+        }
+      } else {
+        setError(data.error || 'Ошибка подключения');
+      }
+    } catch (error) {
+      setError('Ошибка сети');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString('ru-RU');
+  };
+
+  const getMessageIcon = (message: BotMessage) => {
+    if (message.is_bot) {
+      return <Bot className="h-4 w-4" />;
+    }
+    return <User className="h-4 w-4" />;
+  };
+
+  const getDirectionIcon = (direction: 'incoming' | 'outgoing') => {
+    return (
+      <ArrowLeftRight 
+        className={`h-3 w-3 ${
+          direction === 'incoming' ? 'text-green-600 rotate-180' : 'text-blue-600'
+        }`} 
+      />
+    );
+  };
+
+  const getMediaTypeIcon = (isMedia: boolean, messageType: string) => {
+    if (isMedia) {
+      if (messageType === 'photo') return <Image className="h-3 w-3 text-purple-600" alt="Фото" />;
+      if (messageType === 'video') return <Download className="h-3 w-3 text-red-600" alt="Видео" />;
+      return <FileText className="h-3 w-3 text-orange-600" alt="Документ" />;
+    }
+    return <MessageSquare className="h-3 w-3 text-gray-600" alt="Сообщение" />;
+  };
+
+  if (!user) {
+    return <div className="flex items-center justify-center min-h-screen">
+      <Loader2 className="h-8 w-8 animate-spin" />
+    </div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Bot className="h-8 w-8 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+              <p className="text-sm text-slate-600">Добро пожаловать, {user.username}</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowSettings(!showSettings)}
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Настройки
+            </Button>
+            <Button variant="outline" onClick={logout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Выход
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-6">
+        {/* Settings Panel */}
+        {showSettings && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Настройки бота
+              </CardTitle>
+              <CardDescription>
+                Подключите базу данных Telegram бота для просмотра истории сообщений
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="botDatabaseId">ID базы данных бота</Label>
+                <Input
+                  id="botDatabaseId"
+                  value={botDatabaseId}
+                  onChange={(e) => setBotDatabaseId(e.target.value)}
+                  placeholder="Например: my-telegram-bot-123"
+                />
+                <p className="text-sm text-slate-600">
+                  Только буквы, цифры и дефисы (минимум 3 символа)
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleConnectBot} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white">
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Подключение...
+                    </>
+                  ) : user.botDatabaseId ? (
+                    'Обновить подключение'
+                  ) : (
+                    'Подключить бот'
+                  )}
+                </Button>
+                {user.botDatabaseId && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setBotDatabaseId('');
+                      handleConnectBot();
+                    }}
+                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  >
+                    Отключить
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Error Alert */}
+        {error && (
+          <Alert className="mb-6 border-red-200 bg-red-50">
+            <AlertDescription className="text-red-800">
+              {error}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* No Bot Connected */}
+        {!user.botDatabaseId ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <Bot className="h-20 w-20 text-slate-400 mb-6" />
+              <h2 className="text-2xl font-semibold text-slate-900 mb-3">Бот не подключен</h2>
+              <p className="text-slate-600 text-center mb-6 max-w-md">
+                Подключите базу данных Telegram бота для просмотра истории сообщений и статистики.
+              </p>
+              <Button onClick={() => setShowSettings(true)} size="lg" className="bg-slate-900 hover:bg-slate-800 text-white">
+                <Settings className="h-5 w-5 mr-2" />
+                Настроить подключение
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            {/* Stats Cards */}
+            {stats && (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-2xl font-bold text-slate-900">{stats.total}</div>
+                    <p className="text-sm text-slate-600">Всего сообщений</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-2xl font-bold text-green-600">{stats.incoming}</div>
+                    <p className="text-sm text-slate-600">Входящие</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-2xl font-bold text-blue-600">{stats.outgoing}</div>
+                    <p className="text-sm text-slate-600">Исходящие</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-2xl font-bold text-gray-600">{stats.textMessages}</div>
+                    <p className="text-sm text-slate-600">Текстовые</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-2xl font-bold text-purple-600">{stats.mediaMessages}</div>
+                    <p className="text-sm text-slate-600">Медиа</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Messages Section */}
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>История сообщений</CardTitle>
+                    <CardDescription>
+                      Просмотр и фильтрация сообщений Telegram бота
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={reloadHistory}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {/* Filters */}
+                <div className="flex flex-col md:flex-row gap-4 mb-6">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        placeholder="Поиск по тексту сообщений..."
+                        value={filters.search}
+                        onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  <Select value={filters.messageType} onValueChange={(value) => setFilters({ ...filters, messageType: value })}>
+                    <SelectTrigger className="w-full md:w-48">
+                      <SelectValue placeholder="Тип сообщения" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Все типы</SelectItem>
+                      <SelectItem value="text">Текст</SelectItem>
+                      <SelectItem value="photo">Фото</SelectItem>
+                      <SelectItem value="video">Видео</SelectItem>
+                      <SelectItem value="document">Документ</SelectItem>
+                      <SelectItem value="audio">Аудио</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={filters.direction} onValueChange={(value) => setFilters({ ...filters, direction: value })}>
+                    <SelectTrigger className="w-full md:w-48">
+                      <SelectValue placeholder="Направление" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Все направления</SelectItem>
+                      <SelectItem value="incoming">Входящие</SelectItem>
+                      <SelectItem value="outgoing">Исходящие</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Messages List */}
+                {isLoading && messages.length === 0 ? (
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : (
+                  <ScrollArea className="h-96 w-full border rounded-lg">
+                    <div className="p-4 space-y-4">
+                      {chatGroups.length === 0 ? (
+                        <div className="text-center py-12 text-slate-500">
+                          <MessageSquare className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+                          <p>Сообщения не найдены</p>
+                        </div>
+                      ) : (
+                        chatGroups.map((chat) => (
+                          <div 
+                            key={message.id} 
+                            className={`flex items-start gap-3 p-4 rounded-lg border ${
+                              message.direction === 'incoming' 
+                                ? 'bg-green-50 border-green-200' 
+                                : 'bg-blue-50 border-blue-200'
+                            }`}
+                          >
+                            <Avatar className="h-8 w-8 mt-1">
+                              <AvatarFallback className={
+                                message.is_bot 
+                                  ? 'bg-blue-100 text-blue-600' 
+                                  : 'bg-slate-100 text-slate-600'
+                              }>
+                                {getMessageIcon(message)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant={message.is_bot ? "default" : "secondary"}>
+                                  {message.is_bot ? "Бот" : "Пользователь"}
+                                </Badge>
+                                {getDirectionIcon(message.direction)}
+                                {getMediaTypeIcon(message.is_media, message.message_type)}
+                                <span className="text-xs text-slate-500 ml-auto">
+                                  {formatTime(message.created_at)}
+                                </span>
+                              </div>
+                              {message.message_text && (
+                                <p className="text-sm text-slate-800 break-words mb-2">
+                                  {message.message_text}
+                                </p>
+                              )}
+                              {message.is_media && message.media_file_id && (
+                                <div className="text-xs text-slate-600 bg-slate-100 rounded p-2 mb-2">
+                                  <div className="font-medium mb-1">
+                                    Медиа файл ({message.message_type})
+                                  </div>
+                                  <div className="font-mono">
+                                    ID: {message.media_file_id}
+                                  </div>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-4 text-xs text-slate-500">
+                                <span>Тип: {message.message_type}</span>
+                                <Separator orientation="vertical" className="h-3" />
+                                <span>Отправитель ID: {message.sender_id}</span>
+                                <Separator orientation="vertical" className="h-3" />
+                                <span>Сообщение ID: {message.message_id}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                )}
+
+                {/* Pagination */}
+                {pagination && pagination.totalPages > 1 && (
+                  <div className="flex justify-center items-center mt-6 gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => fetchMessages(page - 1)}
+                      disabled={!pagination.hasPrev || isLoading}
+                      className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                    >
+                      Назад
+                    </Button>
+                    <span className="text-sm text-slate-600 px-4">
+                      Страница {page} из {pagination.totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      onClick={() => fetchMessages(page + 1)}
+                      disabled={!pagination.hasNext || isLoading}
+                      className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                    >
+                      Вперед
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

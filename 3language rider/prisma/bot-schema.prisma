@@ -1,0 +1,72 @@
+// Prisma schema for bot databases
+// This schema is used for individual bot databases
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("BOT_DATABASE_URL")
+}
+
+model BotMessage {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  messageId    Int      @map("message_id")
+  senderId     Int      @map("sender_id")
+  messageText  String?  @map("message_text")
+  messageType  String   @map("message_type")
+  mediaFileId  String?  @map("media_file_id")
+  isMedia      Boolean  @default(false) @map("is_media")
+  isBot        Boolean  @default(false) @map("is_bot")
+  direction    String   // 'incoming' or 'outgoing'
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  @@map("bot_messages")
+  @@index([userId])
+  @@index([messageId])
+  @@index([senderId])
+  @@index([direction])
+  @@index([createdAt])
+}
+
+model BotUser {
+  id         Int      @id @default(autoincrement())
+  telegramId Int      @unique @map("telegram_id")
+  username   String?
+  firstName  String?  @map("first_name")
+  lastName   String?  @map("last_name")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  @@map("bot_users")
+  @@index([telegramId])
+  @@index([isActive])
+}
+
+model BotSettings {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("bot_settings")
+}
+
+model BotStats {
+  id          Int      @id @default(autoincrement())
+  date        DateTime @default(now())
+  totalUsers  Int      @default(0) @map("total_users")
+  activeUsers Int      @default(0) @map("active_users")
+  totalMessages Int    @default(0) @map("total_messages")
+  incomingMessages Int @default(0) @map("incoming_messages")
+  outgoingMessages Int @default(0) @map("outgoing_messages")
+  
+  @@map("bot_stats")
+  @@unique([date])
+}
