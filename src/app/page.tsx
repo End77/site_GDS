@@ -122,6 +122,42 @@ function HomeContent() {
       title: t('services.analytics.title'),
       description: t('services.analytics.description'),
       features: t('services.analytics.features') || []
+    },
+    {
+      icon: <Bot className="w-8 h-8" />,
+      title: t('services.customDevelopment.title'),
+      description: t('services.customDevelopment.description'),
+      features: t('services.customDevelopment.features') || []
+    },
+    {
+      icon: <Cpu className="w-8 h-8" />,
+      title: t('services.readyMade.title'),
+      description: t('services.readyMade.description'),
+      features: t('services.readyMade.features') || []
+    },
+    {
+      icon: <MessageSquare className="w-8 h-8" />,
+      title: t('services.integration.title'),
+      description: t('services.integration.description'),
+      features: t('services.integration.features') || []
+    },
+    {
+      icon: <Zap className="w-8 h-8" />,
+      title: t('services.aiTraining.title'),
+      description: t('services.aiTraining.description'),
+      features: t('services.aiTraining.features') || []
+    },
+    {
+      icon: <Users className="w-8 h-8" />,
+      title: t('services.support.title'),
+      description: t('services.support.description'),
+      features: t('services.support.features') || []
+    },
+    {
+      icon: <BarChart3 className="w-8 h-8" />,
+      title: t('services.analytics.title'),
+      description: t('services.analytics.description'),
+      features: t('services.analytics.features') || []
     }
   ]
 
