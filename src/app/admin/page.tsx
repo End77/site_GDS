@@ -46,7 +46,7 @@ interface Message {
   fromUser?: User
   toUser?: User
 }
-
+{/*
 interface BotMessage {
   id: number
   userId: number
@@ -66,6 +66,7 @@ interface BotMessage {
     lastName?: string
   }
 }
+*/}
 
 export default function AdminPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
@@ -261,6 +262,7 @@ export default function AdminPage() {
             </CardContent>
           </Card>
 
+          {/*
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Сообщения бота</CardTitle>
@@ -273,7 +275,7 @@ export default function AdminPage() {
               </p>
             </CardContent>
           </Card>
-
+          */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Активность</CardTitle>
@@ -294,7 +296,7 @@ export default function AdminPage() {
             <TabsTrigger value="overview">Обзор</TabsTrigger>
             <TabsTrigger value="users">Пользователи</TabsTrigger>
             <TabsTrigger value="messages">Сообщения чата</TabsTrigger>
-            <TabsTrigger value="bot">Telegram Bot</TabsTrigger>
+            {/*<TabsTrigger value="bot">Telegram Bot</TabsTrigger>*/}
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -432,7 +434,7 @@ export default function AdminPage() {
               </CardContent>
             </Card>
           </TabsContent>
-
+          {/*
           <TabsContent value="bot">
             <Card>
               <CardHeader>
@@ -465,6 +467,7 @@ export default function AdminPage() {
               </CardContent>
             </Card>
           </TabsContent>
+          */}
         </Tabs>
       </div>
     </div>
