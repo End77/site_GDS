@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 46, "column": 0}, "map": {"version":3,"sources":["file:///home/end/Desktop/WEB/3language%20rider/src/app/api/auth/logout/route.ts"],"sourcesContent":["import { NextResponse } from 'next/server';\n\nexport async function POST() {\n  const response = NextResponse.json({\n    success: true,\n    message: 'Выход выполнен успешно'\n  });\n  \n  response.cookies.set('session-token', '', {\n    httpOnly: true,\n    secure: process.env.NODE_ENV === 'production',\n    sameSite: 'lax',\n    maxAge: 0,\n  });\n\n  return response;\n}"],"names":[],"mappings":";;;;AAAA;;AAEO,eAAe;IACpB,MAAM,WAAW,gJAAY,CAAC,IAAI,CAAC;QACjC,SAAS;QACT,SAAS;IACX;IAEA,SAAS,OAAO,CAAC,GAAG,CAAC,iBAAiB,IAAI;QACxC,UAAU;QACV,QAAQ,oDAAyB;QACjC,UAAU;QACV,QAAQ;IACV;IAEA,OAAO;AACT","debugId":null}}]
+}

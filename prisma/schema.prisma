@@ -1,0 +1,148 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ===== АУТЕНТИФИКАЦИЯ И ПОЛЬЗОВАТЕЛИ =====
+
+model User {
+  id               String   @id @default(cuid())
+  username         String   @unique
+  email            String   @unique
+  passwordHash     String   @map("password_hash")
+  company          String   @default("Gentle Droid Solutions")
+  role             String   @default("user") // 'user', 'admin'
+  botDatabaseId    String?  @map("bot_database_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  
+  // Отношения
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  
+  @@map("users")
+}
+
+// ===== ВНУТРЕННИЙ ЧAT И АДМИН ПАНЕЛЬ =====
+
+model Message {
+  id           String   @id @default(cuid())
+  fromUserId   String   @map("from_user_id")
+  toUserId     String   @map("to_user_id")
+  text         String
+  messageType  String?  @map("message_type") // 'text', 'media', 'bot', etc.
+  mediaFileId  String?  @map("media_file_id")
+  isMedia      Boolean  @default(false) @map("is_media")
+  isBot        Boolean  @default(false) @map("is_bot")
+  direction    String   // 'incoming', 'outgoing'
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  // Отношения
+  fromUser     User     @relation("SentMessages", fields: [fromUserId], references: [id])
+  toUser       User     @relation("ReceivedMessages", fields: [toUserId], references: [id])
+  
+  @@map("messages")
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([direction])
+  @@index([createdAt])
+}
+
+// ===== TELEGRAM BOT - ПОЛЬЗОВАТЕЛИ БОТА =====
+
+model BotUser {
+  id         Int      @id @default(autoincrement())
+  telegramId Int      @unique @map("telegram_id")
+  username   String?
+  firstName  String?  @map("first_name")
+  lastName   String?  @map("last_name")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  // Отношения
+  messages    BotMessage[]
+  
+  @@map("bot_users")
+  @@index([telegramId])
+  @@index([isActive])
+}
+
+// ===== TELEGRAM BOT - СООБЩЕНИЯ БОТА =====
+
+model BotMessage {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  messageId    Int      @map("message_id")
+  senderId     Int      @map("sender_id")
+  messageText  String?  @map("message_text")
+  messageType  String   @map("message_type")
+  mediaFileId  String?  @map("media_file_id")
+  isMedia      Boolean  @default(false) @map("is_media")
+  isBot        Boolean  @default(false) @map("is_bot")
+  direction    String   // 'incoming' or 'outgoing'
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  // Отношения
+  user         BotUser @relation(fields: [userId], references: [id])
+  
+  @@map("bot_messages")
+  @@index([userId])
+  @@index([messageId])
+  @@index([senderId])
+  @@index([direction])
+  @@index([createdAt])
+}
+
+// ===== TELEGRAM BOT - НАСТРОЙКИ =====
+
+model BotSettings {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("bot_settings")
+}
+
+// ===== TELEGRAM BOT - СТАТИСТИКА =====
+
+model BotStats {
+  id               Int      @id @default(autoincrement())
+  date             DateTime @default(now())
+  totalUsers       Int      @default(0) @map("total_users")
+  activeUsers      Int      @default(0) @map("active_users")
+  totalMessages    Int      @default(0) @map("total_messages")
+  incomingMessages Int      @default(0) @map("incoming_messages")
+  outgoingMessages Int      @default(0) @map("outgoing_messages")
+  
+  @@map("bot_stats")
+  @@unique([date])
+}
+
+// ===== СИСТЕМНЫЕ НАСТРОЙКИ =====
+
+model SystemSettings {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("system_settings")
+}
