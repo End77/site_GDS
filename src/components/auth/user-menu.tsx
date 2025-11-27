@@ -14,15 +14,25 @@ import {
 import { Bot, Settings, LogOut, User, ChevronDown } from 'lucide-react'
 import { useAuth } from './auth-provider'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 export function UserMenu() {
   const { user, logout } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
+  const router = useRouter()
 
   const handleLogout = async () => {
     setIsLoading(true)
-    await logout()
-    setIsLoading(false)
+    try {
+      await logout()
+      setIsOpen(false) // Закрываем dropdown после выхода
+      router.push('/') // Перенаправляем на главную страницу
+    } catch (error) {
+      console.error('Ошибка при выходе:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (!user) {
@@ -37,7 +47,7 @@ export function UserMenu() {
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="flex items-center space-x-2 h-auto p-2">
           <Avatar className="w-8 h-8">

@@ -19,11 +19,10 @@ import { LanguageProvider, useTranslation } from '@/lib/i18n/language-context'
 
 function HomeContent() {
   const { t } = useTranslation()
+  const { user, logout } = useAuth() // Используем useAuth вместо локального состояния
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [scrollY, setScrollY] = useState(0)
-  const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [showDashboard, setShowDashboard] = useState(false)
 
   // Проверка авторизации при загрузке
   useEffect(() => {
@@ -36,29 +35,15 @@ function HomeContent() {
         credentials: 'include'
       })
       const data = await response.json()
-      
+
       if (data.user) {
-        setUser(data.user)
-        // Если пользователь авторизован, показываем Dashboard
-        setShowDashboard(true)
+        // Состояние пользователя теперь управляется через AuthProvider
+        // Дополнительные действия не нужны
       }
     } catch (error) {
       console.error('Ошибка проверки авторизации:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-      })
-      setUser(null)
-      setShowDashboard(false)
-    } catch (error) {
-      console.error('Ошибка выхода:', error)
     }
   }
 
@@ -81,48 +66,12 @@ function HomeContent() {
   }
 
   // Если пользователь авторизован, показываем Dashboard
-  if (showDashboard && user) {
-    return <Dashboard user={user} onLogout={handleLogout} />
+  if (user) {
+    return <Dashboard user={user} onLogout={logout} />
   }
 
   // Если не авторизован, показываем обычную главную страницу
   const services = [
-    {
-      icon: <Bot className="w-8 h-8" />,
-      title: t('services.customDevelopment.title'),
-      description: t('services.customDevelopment.description'),
-      features: t('services.customDevelopment.features') || []
-    },
-    {
-      icon: <Cpu className="w-8 h-8" />,
-      title: t('services.readyMade.title'),
-      description: t('services.readyMade.description'),
-      features: t('services.readyMade.features') || []
-    },
-    {
-      icon: <MessageSquare className="w-8 h-8" />,
-      title: t('services.integration.title'),
-      description: t('services.integration.description'),
-      features: t('services.integration.features') || []
-    },
-    {
-      icon: <Zap className="w-8 h-8" />,
-      title: t('services.aiTraining.title'),
-      description: t('services.aiTraining.description'),
-      features: t('services.aiTraining.features') || []
-    },
-    {
-      icon: <Users className="w-8 h-8" />,
-      title: t('services.support.title'),
-      description: t('services.support.description'),
-      features: t('services.support.features') || []
-    },
-    {
-      icon: <BarChart3 className="w-8 h-8" />,
-      title: t('services.analytics.title'),
-      description: t('services.analytics.description'),
-      features: t('services.analytics.features') || []
-    },
     {
       icon: <Bot className="w-8 h-8" />,
       title: t('services.customDevelopment.title'),
