@@ -1,5 +1,5 @@
 // ============================================
-// app/page.tsx - Главная страница
+// app/page.tsx - Главная страница (Лендинг)
 // ============================================
 'use client'
 
@@ -9,43 +9,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Bot, Cpu, MessageSquare, Zap, Users, BarChart3, ArrowRight, CheckCircle, Star, Menu, X, Shield } from 'lucide-react'
 import Link from 'next/link'
-import { Dashboard } from '@/components/Dashboard'
-import { UserMenu } from '@/components/auth/user-menu'
+import { UserMenu } from '@/components/auth/user-menu' // UserMenu остается для навигации
 import { ScrollReveal } from '@/components/ui/scroll-reveal'
 import { AnimatedCounter } from '@/components/ui/animated-counter'
 import { LanguageSwitcher } from '@/components/ui/language-switcher'
-import { AuthProvider, useAuth } from '@/components/auth/auth-provider'
+import { AuthProvider } from '@/components/auth/auth-provider' // Возвращаем AuthProvider
 import { LanguageProvider, useTranslation } from '@/lib/i18n/language-context'
 
 function HomeContent() {
   const { t } = useTranslation()
-  const { user, logout } = useAuth() // Используем useAuth вместо локального состояния
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [scrollY, setScrollY] = useState(0)
-  const [loading, setLoading] = useState(true)
-
-  // Проверка авторизации при загрузке
-  useEffect(() => {
-    checkAuth()
-  }, [])
-
-  const checkAuth = async () => {
-    try {
-      const response = await fetch('/api/auth/me', {
-        credentials: 'include'
-      })
-      const data = await response.json()
-
-      if (data.user) {
-        // Состояние пользователя теперь управляется через AuthProvider
-        // Дополнительные действия не нужны
-      }
-    } catch (error) {
-      console.error('Ошибка проверки авторизации:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY)
@@ -53,24 +27,7 @@ function HomeContent() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Если загружается
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600">Загрузка...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Если пользователь авторизован, показываем Dashboard
-  if (user) {
-    return <Dashboard user={user} onLogout={logout} />
-  }
-
-  // Если не авторизован, показываем обычную главную страницу
+  // Убираем дублирующиеся сервисы для чистоты кода
   const services = [
     {
       icon: <Bot className="w-8 h-8" />,
@@ -89,6 +46,24 @@ function HomeContent() {
       title: t('services.integration.title'),
       description: t('services.integration.description'),
       features: t('services.integration.features') || []
+    },
+    {
+      icon: <Zap className="w-8 h-8" />,
+      title: t('services.aiTraining.title'),
+      description: t('services.aiTraining.description'),
+      features: t('services.aiTraining.features') || []
+    },
+    {
+      icon: <Users className="w-8 h-8" />,
+      title: t('services.support.title'),
+      description: t('services.support.description'),
+      features: t('services.support.features') || []
+    },
+    {
+      icon: <BarChart3 className="w-8 h-8" />,
+      title: t('services.analytics.title'),
+      description: t('services.analytics.description'),
+      features: t('services.analytics.features') || []
     },
     {
       icon: <Zap className="w-8 h-8" />,
@@ -146,7 +121,7 @@ function HomeContent() {
               <Bot className="w-8 h-8 text-blue-600" />
               <span className="text-xl font-bold text-gray-900">Gentle Droid Solutions</span>
             </div>
-            
+
             <div className="hidden md:flex items-center space-x-8">
               <Link href="#services" className="text-gray-600 hover:text-blue-600 transition-colors">{t('navigation.services')}</Link>
               <Link href="#pricing" className="text-gray-600 hover:text-blue-600 transition-colors">{t('navigation.pricing')}</Link>
@@ -236,7 +211,7 @@ function HomeContent() {
               </p>
             </div>
           </ScrollReveal>
-          
+
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {services.map((service, index) => (
               <ScrollReveal key={index} delay={index * 100}>
@@ -362,13 +337,13 @@ function HomeContent() {
               </p>
             </div>
           </ScrollReveal>
-          
+
           <div className="grid md:grid-cols-4 gap-8 text-center">
             <ScrollReveal delay={100}>
               <div className="bg-blue-50 rounded-lg p-6">
-                <AnimatedCounter 
-                  end={500} 
-                  suffix="+" 
+                <AnimatedCounter
+                  end={500}
+                  suffix="+"
                   className="text-4xl font-bold text-blue-600 mb-2"
                 />
                 <div className="text-gray-600">{t('stats.projectsCompleted')}</div>
@@ -376,9 +351,9 @@ function HomeContent() {
             </ScrollReveal>
             <ScrollReveal delay={200}>
               <div className="bg-green-50 rounded-lg p-6">
-                <AnimatedCounter 
-                  end={95} 
-                  suffix="%" 
+                <AnimatedCounter
+                  end={95}
+                  suffix="%"
                   className="text-4xl font-bold text-green-600 mb-2"
                 />
                 <div className="text-gray-600">{t('stats.clientSatisfaction')}</div>
@@ -386,9 +361,9 @@ function HomeContent() {
             </ScrollReveal>
             <ScrollReveal delay={300}>
               <div className="bg-purple-50 rounded-lg p-6">
-                <AnimatedCounter 
-                  end={50} 
-                  suffix="M+" 
+                <AnimatedCounter
+                  end={50}
+                  suffix="M+"
                   className="text-4xl font-bold text-purple-600 mb-2"
                 />
                 <div className="text-gray-600">{t('stats.conversationsHandled')}</div>
@@ -442,7 +417,7 @@ function HomeContent() {
                 {t('footer.description')}
               </p>
             </div>
-            
+
             <div>
               <h3 className="font-semibold mb-4">{t('footer.services')}</h3>
               <ul className="space-y-2 text-gray-400">
@@ -452,7 +427,7 @@ function HomeContent() {
                 <li>{t('services.aiTraining.title')}</li>
               </ul>
             </div>
-            
+
             <div>
               <h3 className="font-semibold mb-4">{t('footer.companyInfo')}</h3>
               <ul className="space-y-2 text-gray-400">
@@ -462,7 +437,7 @@ function HomeContent() {
                 <li>{t('navigation.login')}</li>
               </ul>
             </div>
-            
+
             <div>
               <h3 className="font-semibold mb-4">{t('footer.contactInfo')}</h3>
               <ul className="space-y-2 text-gray-400">
@@ -472,7 +447,7 @@ function HomeContent() {
               </ul>
             </div>
           </div>
-          
+
           <div className="border-t border-gray-800 mt-8 pt-8 text-center">
             <p className="text-gray-400">
               {t('footer.rights')}
@@ -484,6 +459,7 @@ function HomeContent() {
   )
 }
 
+// Возвращаем AuthProvider, так как UserMenu использует useAuth
 export default function Home() {
   return (
     <AuthProvider>

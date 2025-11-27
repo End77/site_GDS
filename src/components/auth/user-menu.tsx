@@ -26,8 +26,9 @@ export function UserMenu() {
     setIsLoading(true)
     try {
       await logout()
-      setIsOpen(false) // Закрываем dropdown после выхода
-      router.push('/') // Перенаправляем на главную страницу
+      setIsOpen(false)
+      // После выхода перенаправляем на главную страницу, а не на /
+      router.push('/')
     } catch (error) {
       console.error('Ошибка при выходе:', error)
     } finally {
@@ -69,7 +70,8 @@ export function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/" className="flex items-center space-x-2">
+          {/* ИЗМЕНЕНИЕ: Ссылка теперь ведет на /dashboard */}
+          <Link href="/dashboard" className="flex items-center space-x-2">
             <User className="w-4 h-4" />
             <span>Dashboard</span>
           </Link>
