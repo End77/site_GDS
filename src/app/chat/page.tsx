@@ -186,7 +186,7 @@ export default function ChatPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => router.push('/')}
+                onClick={() => router.push('/dashboard')}
               >
                 <ArrowLeft className="w-4 h-4" />
               </Button>

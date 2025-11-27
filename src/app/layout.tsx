@@ -29,6 +29,7 @@ export const metadata: Metadata = {
     "customer experience",
     "process automation",
     "Gentle Droid Solutions",
+    "chatbots"
   ],
 
   // 4. Автор контента
@@ -66,7 +67,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Gentle Droid Solutions | AI Chatbots & Automation for Business",
     description: "We develop custom AI chatbots and automation solutions to streamline your business processes.",
-    images: ["/images/og-image.jpg"], // <-- ЗАМЕНИТЕ НА ПУТЬ К ВАШЕМУ ИЗОБРАЖЕНИЮ
+    images: ["/images/og-image.jpg"],
   },
 
   // 8. Другие полезные метаданные

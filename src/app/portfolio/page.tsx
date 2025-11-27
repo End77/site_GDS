@@ -1,12 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Bot, MessageSquare, Users, TrendingUp, ArrowLeft, ExternalLink, Calendar, Target } from 'lucide-react'
-import Link from 'next/link'
+import { LanguageProvider } from '@/lib/i18n/language-context'
+import { LanguageSwitcher } from '@/components/ui/language-switcher'
 
 const caseStudies = [
   {
@@ -135,12 +138,14 @@ const categories = [
   { id: 'real-estate', name: 'Real Estate', icon: <Target className="w-4 h-4" /> }
 ]
 
-export default function Portfolio() {
+// Create the Portfolio component
+function PortfolioContent() {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedCase, setSelectedCase] = useState<typeof caseStudies[0] | null>(null)
+  const router = useRouter()
 
-  const filteredCases = selectedCategory === 'all' 
-    ? caseStudies 
+  const filteredCases = selectedCategory === 'all'
+    ? caseStudies
     : caseStudies.filter(case_ => case_.category === selectedCategory)
 
   return (
@@ -153,15 +158,16 @@ export default function Portfolio() {
               <ArrowLeft className="w-5 h-5 text-gray-600" />
               <span className="text-gray-600">Back to Home</span>
             </Link>
-            
+
             <div className="flex items-center space-x-2">
+              <LanguageSwitcher />
               <Bot className="w-6 h-6 text-blue-600" />
               <span className="text-lg font-bold text-gray-900">Portfolio</span>
             </div>
+
           </div>
         </div>
       </nav>
-
       <div className="container mx-auto px-4 pt-24 pb-12">
         {/* Header */}
         <div className="text-center mb-12">
@@ -223,8 +229,8 @@ export default function Portfolio() {
                     </Badge>
                   )}
                 </div>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full"
                   onClick={() => setSelectedCase(caseStudy)}
                 >
@@ -245,15 +251,15 @@ export default function Portfolio() {
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">{selectedCase.title}</h2>
                   <p className="text-lg text-blue-600 font-medium">{selectedCase.company}</p>
                 </div>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   size="icon"
                   onClick={() => setSelectedCase(null)}
                 >
                   ×
                 </Button>
               </div>
-              
+
               <div className="p-6 space-y-6">
                 {/* Project Overview */}
                 <div>
@@ -325,8 +331,8 @@ export default function Portfolio() {
                     Let's discuss how we can create similar results for your organization
                   </p>
                   <div className="flex gap-3 justify-center">
-                    <Button>Get Started</Button>
-                    <Button variant="outline">Schedule Consultation</Button>
+                    <Button onClick={() => router.push('/login')}>Get Started</Button>
+                    <Button onClick={() => router.push('/contact')} variant="outline">Schedule Consultation</Button>
                   </div>
                 </div>
               </div>
@@ -358,5 +364,14 @@ export default function Portfolio() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Wrap the component with LanguageProvider
+export default function Portfolio() {
+  return (
+    <LanguageProvider>
+      <PortfolioContent />
+    </LanguageProvider>
   )
 }

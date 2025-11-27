@@ -127,7 +127,7 @@ function HomeContent() {
               <Link href="#pricing" className="text-gray-600 hover:text-blue-600 transition-colors">{t('navigation.pricing')}</Link>
               <Link href="/portfolio" className="text-gray-600 hover:text-blue-600 transition-colors">{t('navigation.portfolio')}</Link>
               <Link href="#testimonials" className="text-gray-600 hover:text-blue-600 transition-colors">{t('navigation.testimonials')}</Link>
-              <Link href="#contact" className="text-gray-600 hover:text-blue-600 transition-colors">{t('navigation.contact')}</Link>
+              <Link href="/contact" className="text-gray-600 hover:text-blue-600 transition-colors">{t('navigation.contact')}</Link>
               <LanguageSwitcher />
               <UserMenu />
             </div>
@@ -396,7 +396,7 @@ function HomeContent() {
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="text-lg px-8 py-6 text-white border-white hover:bg-white hover:text-blue-600">
+              <Button size="lg" variant="outline" className="text-lg px-8 py-6 text-black border-white hover:bg-white hover:text-blue-600">
                 {t('cta.scheduleDemo')}
               </Button>
             </div>

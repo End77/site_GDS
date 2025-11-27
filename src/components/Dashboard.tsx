@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { Bot, MessageSquare, Languages, Shield, LogOut, User, ArrowRight, Sparkles } from 'lucide-react';
+import { LanguageProvider } from '@/lib/i18n/language-context'
+import { LanguageSwitcher } from '@/components/ui/language-switcher'
 
 interface DashboardProps {
   user: {
@@ -14,7 +16,8 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
-export function Dashboard({ user, onLogout }: DashboardProps) {
+// Create the DashboardContent component
+function DashboardContent({ user, onLogout }: DashboardProps) {
   const [selectedApp, setSelectedApp] = useState<string | null>(null);
   const isAdmin = user?.role?.trim() === 'admin';
 
@@ -51,7 +54,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
 
   const handleAppSelect = (app: typeof apps[0]) => {
     setSelectedApp(app.id);
-    
+
     // Внутренняя навигация по приложению
     window.location.href = app.url;
   };
@@ -84,6 +87,8 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                   )}
                 </p>
               </div>
+              <LanguageSwitcher />
+
               <button
                 onClick={onLogout}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
@@ -204,4 +209,13 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
       </main>
     </div>
   );
+}
+
+// Wrap the component with LanguageProvider
+export function Dashboard({ user, onLogout }: DashboardProps) {
+  return (
+    <LanguageProvider>
+      <DashboardContent user={user} onLogout={onLogout} />
+    </LanguageProvider>
+  )
 }

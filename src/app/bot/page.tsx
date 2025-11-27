@@ -234,13 +234,13 @@ export default function BotPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => router.push('/')}
+                onClick={() => router.push('/dashboard')}
               >
                 <ArrowLeft className="w-4 h-4" />
               </Button>
               <div className="flex items-center gap-2">
                 <Bot className="w-5 h-5 text-purple-600" />
-                <h1 className="text-lg font-semibold">Telegram Bot (3 языка)</h1>
+                <h1 className="text-lg font-semibold">Telegram Bot</h1>
               </div>
             </div>
             
