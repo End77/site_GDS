@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     if (botDatabaseId) {
       const botDb = createBotDatabaseManager(botDatabaseId);
       const dbInfo = botDb.getDatabaseInfo();
-      
+
       if (!dbInfo.exists) {
         return NextResponse.json(
           { error: `База данных не найдена по пути: ${dbInfo.path}` },
@@ -55,8 +55,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: botDatabaseId 
-        ? 'База данных бота успешно подключена' 
+      message: botDatabaseId
+        ? 'База данных бота успешно подключена'
         : 'Подключение к базе данных бота отключено',
       user: {
         id: updatedUser.id,
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Settings bot-id error:', error);
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Ошибка валидации', details: error.errors },
@@ -82,3 +82,8 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+
+export async function GET(request: NextRequest) {
+  console.log('=> GET /api/auth/me called'); // Лог 1
+  }

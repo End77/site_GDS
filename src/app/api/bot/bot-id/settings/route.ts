@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { verifySession } from '@/lib/auth-server' // <-- 1. Импортируем функцию
 
 // GET - получение настроек
 export async function GET(request: NextRequest) {
@@ -9,22 +10,23 @@ export async function GET(request: NextRequest) {
 
     if (!token) {
       return NextResponse.json(
-        { error: 'Не авторизован' },
+        { error: 'Не авторизован: отсутствует токен' },
         { status: 401 }
       )
     }
 
-    // Проверяем текущего пользователя
-    const currentUser = await db.user.findUnique({
-      where: { id: token }
-    })
+    // 2. Проверяем и расшифровываем токен, чтобы получить пользователя
+    const currentUser = await verifySession(token)
 
     if (!currentUser) {
       return NextResponse.json(
-        { error: 'Пользователь не найден' },
+        { error: 'Сессия недействительна или пользователь не найден' },
         { status: 401 }
       )
     }
+
+    // Если пользователь найден, продолжаем...
+    console.log(`[/api/bot/bot-id/settings] Пользователь ${currentUser.username} запрашивает настройки.`);
 
     // Получаем настройки бота
     const botToken = await db.botSettings.findUnique({
@@ -58,22 +60,23 @@ export async function POST(request: NextRequest) {
 
     if (!token) {
       return NextResponse.json(
-        { error: 'Не авторизован' },
+        { error: 'Не авторизован: отсутствует токен' },
         { status: 401 }
       )
     }
 
-    // Проверяем текущего пользователя
-    const currentUser = await db.user.findUnique({
-      where: { id: token }
-    })
+    // 3. И здесь тоже используем verifySession
+    const currentUser = await verifySession(token)
 
     if (!currentUser) {
       return NextResponse.json(
-        { error: 'Пользователь не найден' },
+        { error: 'Сессия недействительна или пользователь не найден' },
         { status: 401 }
       )
     }
+
+    // Если пользователь найден, продолжаем...
+    console.log(`[/api/bot/bot-id/settings] Пользователь ${currentUser.username} сохраняет настройки.`);
 
     const { bot_token, bot_language } = await request.json()
 

@@ -44,7 +44,7 @@ export function SettingsPage() {
       }
 
       // Check if database exists by trying to connect
-      const response = await fetch('/api/settings/bot-id', {
+      const response = await fetch('/api/bot/bot-id/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ botDatabaseId: botId }),
@@ -76,7 +76,7 @@ export function SettingsPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/settings/bot-id', {
+      const response = await fetch('/api/bot/bot-id/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ botDatabaseId: botDatabaseId.trim() || null }),
@@ -102,7 +102,7 @@ export function SettingsPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/settings/bot-id', {
+      const response = await fetch('/api/bot/bot-id/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ botDatabaseId: null }),

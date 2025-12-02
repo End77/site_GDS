@@ -200,7 +200,7 @@ export function Dashboard() {
     setError(null);
     
     try {
-      const response = await fetch('/api/settings/bot-id', {
+      const response = await fetch('/api/bot/bot-id/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ botDatabaseId: botDatabaseId || null }),

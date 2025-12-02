@@ -1,543 +1,334 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { 
-  Bot, 
-  LogOut, 
-  ArrowLeft,
-  Settings,
-  MessageSquare,
-  Users,
-  BarChart3,
-  Languages,
-  Download,
-  RefreshCw
-} from 'lucide-react'
-import { LanguageProvider } from '@/lib/i18n/language-context'
-import { LanguageSwitcher } from '@/components/ui/language-switcher'
+import { useState, useEffect } from 'react';
+import { useAuth, AuthProvider } from '@/components/auth/auth-provider';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Loader2, Bot, MessageCircle, Settings, BarChart3, Users, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
+import { format } from 'date-fns';
+import { ru } from 'date-fns/locale';
 
-interface BotUser {
-  id: number
-  telegramId: number
-  username?: string
-  firstName?: string
-  lastName?: string
-  isActive: boolean
-  createdAt: string
-}
+const getInitials = (userId: string) => userId.substring(0, 2).toUpperCase();
 
-interface BotMessage {
-  id: number
-  userId: number
-  messageId: number
-  senderId: number
-  messageText?: string
-  messageType: string
-  isMedia: boolean
-  isBot: boolean
-  direction: string
-  createdAt: string
-  user?: BotUser
-}
+const getAvatarColor = (userId: string) => {
+  const colors = ['bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-orange-500'];
+  return colors[userId.charCodeAt(0) % colors.length];
+};
 
-interface BotStats {
-  totalUsers: number
-  activeUsers: number
-  totalMessages: number
-  incomingMessages: number
-  outgoingMessages: number
-}
+const getSenderDisplay = (senderId: string) => {
+  if (senderId === 'bot') {
+    return { name: 'Бот', initials: 'BT', color: 'bg-purple-500' };
+  }
+  return { name: `Пользователь ${senderId}`, initials: getInitials(senderId), color: getAvatarColor(senderId) };
+};
 
-export default function BotPage() {
-  const [currentUser, setCurrentUser] = useState<any>(null)
-  const [botUsers, setBotUsers] = useState<BotUser[]>([])
-  const [botMessages, setBotMessages] = useState<BotMessage[]>([])
-  const [botStats, setBotStats] = useState<BotStats>({
-    totalUsers: 0,
-    activeUsers: 0,
+const formatTime = (dateString: string) => {
+  return new Date(dateString).toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+
+function BotPageContent() {
+  const { user, loading } = useAuth();
+  const [stats, setStats] = useState({
     totalMessages: 0,
-    incomingMessages: 0,
-    outgoingMessages: 0
-  })
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('overview')
-  const [botToken, setBotToken] = useState('')
-  const [botLanguage, setBotLanguage] = useState('ru')
-  const [savingSettings, setSavingSettings] = useState(false)
-  const router = useRouter()
+    totalChats: 0,
+    todayMessages: 0,
+    activeUsers: 0
+  });
 
-  // Проверка авторизации
+  // --- Новое состояние для последней активности ---
+  const [recentMessages, setRecentMessages] = useState<any[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [selectedChatForActivity, setSelectedChatForActivity] = useState('all');
+
+  // --- Эффект для загрузки статистики ---
   useEffect(() => {
-    checkAuth()
-  }, [])
+    if (user?.botDatabaseId) {
+      fetchStats();
+    }
+  }, [user?.botDatabaseId]);
 
-  const checkAuth = async () => {
+  // --- Новый эффект для загрузки последней активности ---
+  useEffect(() => {
+    if (user?.botDatabaseId) {
+      fetchRecentActivity();
+    }
+  }, [user?.botDatabaseId, selectedChatForActivity]); // Перезагружаем при смене чата
+
+  const fetchStats = async () => {
     try {
-      const response = await fetch('/api/auth/me', {
-        credentials: 'include'
-      })
-      
+      const response = await fetch(`/api/bot/${user.botType}/stats`, {
+      credentials: 'include',
+      });
       if (response.ok) {
-        const data = await response.json()
-        setCurrentUser(data.user)
-        loadBotData()
-        loadBotSettings()
-      } else {
-        router.push('/login')
+        const data = await response.json();
+        setStats(data);
       }
     } catch (error) {
-      console.error('Auth check failed:', error)
-      router.push('/login')
+      console.error('Failed to fetch stats:', error);
+    }
+  };
+
+  // --- Новая функция для загрузки активности ---
+  const fetchRecentActivity = async () => {
+    setActivityLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (selectedChatForActivity !== 'all') {
+        params.append('chatId', selectedChatForActivity);
+      }
+      const response = await fetch(`/api/bot/recent-activity?${params}`, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setRecentMessages(data.messages);
+      }
+    } catch (error) {
+      console.error('Failed to fetch recent activity:', error);
     } finally {
-      setLoading(false)
+      setActivityLoading(false);
     }
-  }
-
-  const loadBotData = async () => {
-    await Promise.all([
-      loadBotUsers(),
-      loadBotMessages(),
-      loadBotStats()
-    ])
-  }
-
-  const loadBotUsers = async () => {
-    try {
-      const response = await fetch('/api/bot/users', {
-        credentials: 'include'
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setBotUsers(data.users)
-      }
-    } catch (error) {
-      console.error('Failed to load bot users:', error)
-    }
-  }
-
-  const loadBotMessages = async () => {
-    try {
-      const response = await fetch('/api/bot/messages', {
-        credentials: 'include'
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setBotMessages(data.messages)
-      }
-    } catch (error) {
-      console.error('Failed to load bot messages:', error)
-    }
-  }
-
-  const loadBotStats = async () => {
-    try {
-      const response = await fetch('/api/bot/stats', {
-        credentials: 'include'
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setBotStats(data.stats)
-      }
-    } catch (error) {
-      console.error('Failed to load bot stats:', error)
-    }
-  }
-
-  const loadBotSettings = async () => {
-    try {
-      const response = await fetch('/api/bot/settings', {
-        credentials: 'include'
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setBotToken(data.settings.bot_token || '')
-        setBotLanguage(data.settings.bot_language || 'ru')
-      }
-    } catch (error) {
-      console.error('Failed to load bot settings:', error)
-    }
-  }
-
-  const saveBotSettings = async () => {
-    setSavingSettings(true)
-    try {
-      const response = await fetch('/api/bot/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          bot_token: botToken,
-          bot_language: botLanguage
-        }),
-        credentials: 'include'
-      })
-
-      if (response.ok) {
-        // Настройки сохранены
-      }
-    } catch (error) {
-      console.error('Failed to save bot settings:', error)
-    } finally {
-      setSavingSettings(false)
-    }
-  }
-
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-      })
-      router.push('/')
-    } catch (error) {
-      console.error('Logout failed:', error)
-    }
-  }
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600">Загрузка Telegram Bot...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin mb-4" />
+            <p className="text-slate-600">Загрузка...</p>
+          </CardContent>
+        </Card>
       </div>
-    )
+    );
   }
 
-  if (!currentUser) {
-    return null
+  if (!user) {
+    // ... (код для неавторизованного пользователя остается без изменений)
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <p className="text-slate-600 mb-4">Пожалуйста, войдите в систему</p>
+              <Link href="/login">
+                <Button>Войти</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      );
   }
+
+  // Получаем уникальные чаты из последних сообщений для селектора
+  const uniqueChats = Array.from(new Set(recentMessages.map(msg => msg.user_id))).sort((a, b) => a - b);
 
   return (
-    <LanguageProvider>
-      <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
+      <header className="bg-white shadow-sm border-b border-slate-200">
+        {/* ... (код хедера остается без изменений) */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => router.push('/dashboard')}
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-              <div className="flex items-center gap-2">
-                <Bot className="w-5 h-5 text-purple-600" />
-                <h1 className="text-lg font-semibold">Telegram Bot</h1>
+              <Bot className="h-8 w-8 text-blue-600" />
+              <div>
+                <h1 className="text-xl font-semibold text-slate-900">Панель управления ботом</h1>
+                <p className="text-sm text-slate-500">
+                  {user.botDatabaseId ? `Подключен к: ${user.botDatabaseId}` : "Бот не подключен"}
+                </p>
               </div>
             </div>
-            
-            <div className="flex items-center gap-3">
-              <LanguageSwitcher />
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium">{currentUser.username}</p>
-                <p className="text-xs text-slate-500">{currentUser.email}</p>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm font-medium text-slate-900">{user.username}</p>
+                <p className="text-xs text-slate-500">{user.email}</p>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleLogout}
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
+              <Link href="/bot/settings">
+                <Button variant="outline" size="sm">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Настройки
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="p-6">
-        {/* Статистика */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {!user.botDatabaseId ? (
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Всего пользователей</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{botStats.totalUsers}</div>
-              <p className="text-xs text-muted-foreground">
-                {botStats.activeUsers} активных
+            {/* ... (код для неподключенного бота остается без изменений) */}
+             <CardContent className="flex flex-col items-center justify-center py-16">
+              <Bot className="h-20 w-20 text-slate-400 mb-6" />
+              <h2 className="text-2xl font-semibold text-slate-900 mb-3">Бот не подключен</h2>
+              <p className="text-slate-600 text-center mb-6 max-w-md">
+                Для просмотра статистики и истории сообщений необходимо подключить базу данных бота в настройках.
               </p>
+              <Link href="/bot/settings">
+                <Button size="lg" className="bg-slate-900 hover:bg-slate-800 text-white">
+                  <Settings className="h-5 w-5 mr-2" />
+                  Перейти к настройкам
+                </Button>
+              </Link>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Все сообщения</CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{botStats.totalMessages}</div>
-              <p className="text-xs text-muted-foreground">
-                {botStats.incomingMessages} входящих
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Исходящие</CardTitle>
-              <Bot className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{botStats.outgoingMessages}</div>
-              <p className="text-xs text-muted-foreground">
-                Ответы бота
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Языки</CardTitle>
-              <Languages className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">3</div>
-              <p className="text-xs text-muted-foreground">
-                RU, EN, HY
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Основной контент */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Обзор</TabsTrigger>
-            <TabsTrigger value="users">Пользователи</TabsTrigger>
-            <TabsTrigger value="messages">Сообщения</TabsTrigger>
-            <TabsTrigger value="settings">Настройки</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        ) : (
+          <div className="space-y-6">
+            {/* Stats Cards */}
+            {/* ... (карточки статистики остаются без изменений) */}
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>Последние пользователи</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Всего сообщений</CardTitle>
+                  <MessageCircle className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {botUsers.slice(0, 5).map((user) => (
-                      <div key={user.id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                            <Bot className="w-4 h-4 text-purple-600" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium">
-                              {user.firstName || user.username || `User ${user.telegramId}`}
-                            </p>
-                            <p className="text-xs text-slate-500">ID: {user.telegramId}</p>
-                          </div>
-                        </div>
-                        <Badge variant={user.isActive ? 'default' : 'secondary'}>
-                          {user.isActive ? 'Активен' : 'Неактивен'}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
+                  <div className="text-2xl font-bold">{stats.totalMessages}</div>
+                  <p className="text-xs text-muted-foreground">+{stats.todayMessages} за сегодня</p>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader>
-                  <CardTitle>Последние сообщения</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Активные чаты</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {botMessages.slice(0, 5).map((message) => (
-                      <div key={message.id} className="flex items-start gap-3">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                          message.isBot ? 'bg-purple-100' : 'bg-blue-100'
-                        }`}>
-                          <Bot className={`w-3 h-3 ${message.isBot ? 'text-purple-600' : 'text-blue-600'}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-medium">
-                              {message.user?.firstName || message.user?.username || `User ${message.userId}`}
-                            </span>
-                            <Badge variant={message.isBot ? 'destructive' : 'secondary'} className="text-xs">
-                              {message.isBot ? 'Bot' : 'User'}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {message.direction}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-slate-600 truncate">{message.messageText}</p>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="text-2xl font-bold">{stats.totalChats}</div>
+                  <p className="text-xs text-muted-foreground">{stats.activeUsers} активных пользователей</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Статус бота</CardTitle>
+                  <Badge variant="outline" className="text-xs">
+                    <Bot className="h-3 w-3 mr-1" />
+                    {user.botDatabaseId}
+                  </Badge>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">Активен</div>
+                  <p className="text-xs text-muted-foreground">База данных подключена</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Действия</CardTitle>
+                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col gap-2">
+                    <Link href="/bot/history">
+                      <Button variant="outline" size="sm" className="w-full justify-between">
+                        История сообщений
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                    <Link href="/bot/settings">
+                      <Button variant="outline" size="sm" className="w-full justify-between">
+                        Настройки
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
 
-          <TabsContent value="users">
+            {/* --- ОБНОВЛЕННЫЙ БЛОК ПОСЛЕДНЕЙ АКТИВНОСТИ --- */}
             <Card>
               <CardHeader>
-                <CardTitle>Пользователи Telegram Bot</CardTitle>
+                <CardTitle>Последняя активность</CardTitle>
+                <CardDescription>Самые последние сообщения из истории бота</CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Пользователь</TableHead>
-                      <TableHead>Username</TableHead>
-                      <TableHead>Telegram ID</TableHead>
-                      <TableHead>Статус</TableHead>
-                      <TableHead>Зарегистрирован</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {botUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">
-                          {user.firstName || 'N/A'} {user.lastName || ''}
-                        </TableCell>
-                        <TableCell>@{user.username || 'N/A'}</TableCell>
-                        <TableCell>{user.telegramId}</TableCell>
-                        <TableCell>
-                          <Badge variant={user.isActive ? 'default' : 'secondary'}>
-                            {user.isActive ? 'Активен' : 'Неактивен'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                {activityLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    {/* Селектор для выбора чата */}
+                    <Select value={selectedChatForActivity} onValueChange={setSelectedChatForActivity}>
+                      <SelectTrigger className="w-full mb-4">
+                        <SelectValue placeholder="Выберите чат" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Все чаты</SelectItem>
+                        {uniqueChats.map(chatId => (
+                          <SelectItem key={chatId} value={chatId.toString()}>
+                            Чат {chatId}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-          <TabsContent value="messages">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Сообщения Telegram Bot</CardTitle>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Download className="w-4 h-4 mr-2" />
-                    Экспорт
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={loadBotMessages}>
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Обновить
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[500px]">
-                  <div className="space-y-4">
-                    {botMessages.map((message) => (
-                      <div key={message.id} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={message.isBot ? 'destructive' : 'secondary'}>
-                              {message.isBot ? 'Bot' : 'User'}
-                            </Badge>
-                            <span className="text-sm font-medium">
-                              {message.user?.firstName || message.user?.username || `User ${message.userId}`}
-                            </span>
-                            <Badge variant="outline">{message.direction}</Badge>
-                          </div>
-                          <span className="text-xs text-slate-500">
-                            {new Date(message.createdAt).toLocaleString()}
-                          </span>
+                    {/* Список сообщений */}
+                    <ScrollArea className="h-[300px] w-full border rounded-md p-4">
+                      {recentMessages.length === 0 ? (
+                        <p className="text-muted-foreground text-center">Нет сообщений для отображения</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {recentMessages.map((msg) => (
+                            <div key={msg.id} className="flex items-start space-x-3 text-sm">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback className={`text-xs ${getSenderDisplay(msg.sender_id.toString()).color}`}>
+                                  {getSenderDisplay(msg.sender_id.toString()).initials}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <p className="font-medium text-slate-900">
+                                    {getSenderDisplay(msg.sender_id.toString()).name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatTime(msg.created_at)}
+                                  </p>
+                                </div>
+                                <p className="text-slate-700 break-words">{msg.message_text || 'Медиа файл'}</p>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <p className="text-sm">{message.messageText}</p>
-                        {message.isMedia && (
-                          <Badge variant="outline" className="mt-2">
-                            📎 Медиа файл
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+                      )}
+                    </ScrollArea>
+
+                    {/* Кнопка перехода к полной истории */}
+                    <div className="mt-4 pt-4 border-t">
+                      <Link href="/bot/history">
+                        <Button variant="outline" className="w-full">
+                          Перейти к истории
+                        </Button>
+                      </Link>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="settings">
-            <Card>
-              <CardHeader>
-                <CardTitle>Настройки Telegram Bot</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="bot_token">Bot Token</Label>
-                  <Input
-                    id="bot_token"
-                    type="password"
-                    value={botToken}
-                    onChange={(e) => setBotToken(e.target.value)}
-                    placeholder="Введите Telegram Bot Token"
-                  />
-                  <p className="text-xs text-slate-500">
-                    Получите токен у @BotFather в Telegram
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="bot_language">Язык по умолчанию</Label>
-                  <select
-                    id="bot_language"
-                    value={botLanguage}
-                    onChange={(e) => setBotLanguage(e.target.value)}
-                    className="w-full p-2 border rounded-md"
-                  >
-                    <option value="ru">Русский</option>
-                    <option value="en">English</option>
-                    <option value="hy">Հայերեն</option>
-                  </select>
-                  <p className="text-xs text-slate-500">
-                    Бот поддерживает 3 языка: русский, английский, армянский
-                  </p>
-                </div>
-
-                <Button 
-                  onClick={saveBotSettings}
-                  disabled={savingSettings}
-                  className="w-full"
-                >
-                  {savingSettings ? 'Сохранение...' : 'Сохранить настройки'}
-                </Button>
-
-                <div className="border-t pt-6">
-                  <h3 className="font-semibold mb-4">Информация о боте</h3>
-                  <div className="space-y-2 text-sm text-slate-600">
-                    <p>• Бот автоматически определяет язык пользователя</p>
-                    <p>• Поддерживает текстовые сообщения и медиа</p>
-                    <p>• Вся история сохраняется в базе данных</p>
-                    <p>• Возможен экспорт истории сообщений</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+          </div>
+        )}
+      </main>
     </div>
-    </LanguageProvider>
-  )
+  );
+}
+
+// Оборачиваем компонент в AuthProvider
+export default function BotPage() {
+  return (
+    <AuthProvider>
+      <BotPageContent />
+    </AuthProvider>
+  );
 }

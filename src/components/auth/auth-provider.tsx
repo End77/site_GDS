@@ -8,6 +8,7 @@ interface User {
   email: string
   role: string
   company: string
+  botDatabaseId?: string
 }
 
 interface AuthContextType {
@@ -15,6 +16,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>
   logout: () => Promise<void>
   loading: boolean
+  createUser: (username: string, email: string, password: string) => Promise<boolean>
+  updateUserBotDatabaseId: (botDatabaseId: string) => Promise<boolean>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -36,7 +39,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const response = await fetch('/api/auth/me', {
         credentials: 'include'
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         setUser(data.user)
@@ -83,11 +86,58 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
+  const createUser = async (username: string, email: string, password: string): Promise<boolean> => {
+    try {
+      const response = await fetch('/api/auth/utils', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'createUser', username, email, password }),
+      })
+
+      return response.ok
+    } catch (error) {
+      console.error('Create user failed:', error)
+      return false
+    }
+  }
+
+  const updateUserBotDatabaseId = async (botDatabaseId: string): Promise<boolean> => {
+    if (!user) return false
+
+    try {
+      const response = await fetch('/api/auth/utils', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'updateUserBotDatabaseId',
+          userId: user.id,
+          botDatabaseId
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setUser(prev => prev ? { ...prev, botDatabaseId: data.user.botDatabaseId } : null)
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Update user bot database ID failed:', error)
+      return false
+    }
+  }
+
   const contextValue: AuthContextType = {
     user,
     login,
     logout,
-    loading
+    loading,
+    createUser,
+    updateUserBotDatabaseId
   }
 
   return (

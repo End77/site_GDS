@@ -1614,7 +1614,7 @@ function Dashboard() {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch('/api/settings/bot-id', {
+            const response = await fetch('/api/bot/bot-id/settings', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
